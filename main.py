@@ -9,10 +9,6 @@ import time
 
 SNAKE_SPEED = 20
 
-
-# could make this scalable depending on how many players, but im gonna keep it as is for 2 ppl.
-
-
 running = True
 
 TILE_SIZE = 20
