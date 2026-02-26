@@ -141,7 +141,11 @@ if __name__ == "__main__":
         window.blit(text_surface, text_rect)
         pygame.display.flip()
 
+    # ================================================================================================
+    # MAIN GAME LOOP
+    # ================================================================================================
     while running:
+        # Checks for player Input and invokes a movement action
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_w:
@@ -165,22 +169,43 @@ if __name__ == "__main__":
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     quit()
+        
+        # TODO: AI code to invoke movement actions
+            # Check if a path data structure has direction instructions: (path will be a queue or some data structure)
+            # 
+            # EX: path = [ ((0, 2, "right"), "down", (1, 2, "down")), ...(more direction instructions) ]
+            #  
+            # path = [ Tuple(direction_instrction), Tuple(Direction_instruction) ]
+            # Tuple(direction_instrction) = ( (initial_head_row, initial_head_col, "direction currently facing"), "direction instruction", (resulting_head_row, resulting_head_col, "direction currently facing") )
+            # 
+            #  --> If path is empty: -> generate a path with an algorithm (A*) and populate the path data structure
+            # Check the next move in the path and set the direction + remove the the front of the data structure
+            # This will be called every game tick.
 
-        #check to make sure the player isn't trying to turn 180 degrees into themself.            
+        # Fetching game state of player   
         player_pos, player_body, score[0], player_fruit = player.game_tick()
 
+        # Fetching game state of AI
         ai_pos, ai_body, score[1], ai_fruit = ai.game_tick()
 
+
+        # =================================
+        # Checking for game over conditions
+        # =================================
+        
+        # Checks for Player self collision
         for tile in player_body[1:]:
             if player_pos[0] == tile[0] and player_pos[1] == tile[1]:
                 player_id = 0
                 running = False
         
+        # Checks for AI self collision
         for tile in ai_body[1:]:
             if ai_pos[0] == tile[0] and ai_pos[1] == tile[1]:
                 player_id = 1
                 running = False
 
+        # Checks for Player out of bounds
         if player_pos[0] >= split_screen_width or player_pos[0] < 0:
             print("player went outside of play zone1")
             player_id = 0
@@ -190,6 +215,7 @@ if __name__ == "__main__":
             player_id = 0
             running = False
 
+        # Checks for AI out of bounds
         if ai_pos[0] > window_width or ai_pos[0] < split_screen_width:
             print("ai went outside of play zone")
             player_id = 1
@@ -199,6 +225,9 @@ if __name__ == "__main__":
             player_id = 1
             running = False
 
+        # ==================
+        # Drawing the Canvas
+        # ==================
         window.fill(black) # make sure that any drawing code is after this point, or else it doesn't show up.
 
         pygame.draw.rect(window, white, pygame.Rect(split_screen_width, 0, mid_bar_width, window_height))
@@ -219,6 +248,9 @@ if __name__ == "__main__":
 
         fps.tick(snake_speed)
     
+    # ================================================================================================
+    # END GAME Process
+    # ================================================================================================
     print(player_id)
     game_over(player_id)
     time.sleep(2)
