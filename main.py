@@ -1,13 +1,14 @@
 import pygame
 import random
 import time
+import heapq
 
 # most of this code is taken from the geeks2geeks tutorial
 
 # player is controlled using wasd, second player is controlled through arrow keys for now
 # to change the second player, use ai.change_direction('left') or 'right' 'up' 'down'
 
-SNAKE_SPEED = 20
+SNAKE_SPEED = 10
 
 running = True
 
@@ -127,6 +128,91 @@ def grid_to_pixel(grid_x, grid_y, grid_size=TILE_SIZE):
     return grid_x * grid_size, grid_y * grid_size
 
 
+def a_star(start, goal, blocked, width, height):
+    def heuristic(a, b):
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+    open_set = [(0, start)]
+    came_from = {}
+    g_score = {start: 0}
+
+    while open_set:
+        _, current = heapq.heappop(open_set)
+        if current == goal:
+            path = []
+            while current in came_from:
+                path.append(current)
+                current = came_from[current]
+            path.reverse()
+            return path
+
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            neighbor = (current[0] + dx, current[1] + dy)
+            if (
+                neighbor[0] < 0
+                or neighbor[0] >= width
+                or neighbor[1] < 0
+                or neighbor[1] >= height
+                or neighbor in blocked
+            ):
+                continue
+
+            tentative_g = g_score[current] + 1
+            if neighbor not in g_score or tentative_g < g_score[neighbor]:
+                came_from[neighbor] = current
+                g_score[neighbor] = tentative_g
+                f_score = tentative_g + heuristic(neighbor, goal)
+                heapq.heappush(open_set, (f_score, neighbor))
+
+    return []
+
+
+def step_to_direction(current_cell, next_cell):
+    dx = next_cell[0] - current_cell[0]
+    dy = next_cell[1] - current_cell[1]
+    if dx == 1:
+        return "right"
+    if dx == -1:
+        return "left"
+    if dy == 1:
+        return "down"
+    if dy == -1:
+        return "up"
+    return None
+
+
+def ai_next_direction(ai_player):
+    head_x = ai_player.snake_pos[0] - ai_player.offset
+    head_y = ai_player.snake_pos[1]
+    current_cell = pixel_to_grid(head_x, head_y, ai_player.tile_size)
+
+    fruit_x = ai_player.fruit_pos[0] - ai_player.offset
+    fruit_y = ai_player.fruit_pos[1]
+    goal_cell = pixel_to_grid(fruit_x, fruit_y, ai_player.tile_size)
+
+    blocked = set()
+    for tile in ai_player.snake_body[1:]:
+        tile_x = tile[0] - ai_player.offset
+        tile_y = tile[1]
+        blocked.add(pixel_to_grid(tile_x, tile_y, ai_player.tile_size))
+
+    if goal_cell in blocked:
+        return None
+
+    path = a_star(
+        current_cell,
+        goal_cell,
+        blocked,
+        ai_player.grid_width,
+        ai_player.grid_height,
+    )
+    if not path:
+        return None
+
+    next_cell = path[0]
+    return step_to_direction(current_cell, next_cell)
+
+
 def render_score(surface, score_value, player_id, split_screen_width, mid_bar_width, color):
     font = pygame.font.SysFont("arial", 30)
     score_surface = font.render("Score: " + str(score_value), True, color)
@@ -198,6 +284,10 @@ if __name__ == "__main__":
         #  --> If path is empty: -> generate a path with an algorithm (A*) and populate the path data structure
         # Check the next move in the path and set the direction + remove the the front of the data structure
         # This will be called every game tick.
+
+        ai_direction = ai_next_direction(ai)
+        if ai_direction:
+            ai.change_direction(ai_direction)
 
         # Fetching game state of player
         player.update()
