@@ -1,6 +1,7 @@
 import pygame
 import random
 import time
+from collections import deque
 
 # most of this code is taken from the geeks2geeks tutorial
 
@@ -92,12 +93,16 @@ class SnakePlayer:
             self.snake_body.pop()
 
         if not self.fruit_spawned:
-            grid_x = random.randrange(0, self.grid_width)
-            grid_y = random.randrange(0, self.grid_height)
-            self.fruit_pos = [
-                grid_x * self.tile_size + self.offset,
-                grid_y * self.tile_size,
-            ]
+            while True:
+                grid_x = random.randrange(0, self.grid_width)
+                grid_y = random.randrange(0, self.grid_height)
+                fruit_pos = [
+                    grid_x * self.tile_size + self.offset,
+                    grid_y * self.tile_size,
+                ]
+                if fruit_pos not in self.snake_body:
+                    self.fruit_pos = fruit_pos
+                    break
 
         self.fruit_spawned = True
 
@@ -153,7 +158,144 @@ def game_over(surface, score_value, player_id, split_screen_width, split_screen_
     surface.blit(text_surface, text_rect)
     pygame.display.flip()
 
+
+def draw_menu(surface):
+    surface.fill(BLACK)
+
+    title_font = pygame.font.SysFont("arial", 50)
+    option_font = pygame.font.SysFont("arial", 30)
+
+    title_surface = title_font.render("AI Snake Project", True, WHITE)
+    easy_surface = option_font.render("Press 1 for Easy Mode (BFS)", True, GREEN)
+    hard_surface = option_font.render("Press 2 for Hard Mode (A*)", True, RED)
+    quit_surface = option_font.render("Press ESC to Quit", True, WHITE)
+
+    title_rect = title_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 100))
+    easy_rect = easy_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2))
+    hard_rect = hard_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 50))
+    quit_rect = quit_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 120))
+
+    surface.blit(title_surface, title_rect)
+    surface.blit(easy_surface, easy_rect)
+    surface.blit(hard_surface, hard_rect)
+    surface.blit(quit_surface, quit_rect)
+
+    pygame.display.update()
+
+
+def start_menu(surface):
+    while True:
+        draw_menu(surface)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:
+                    return "easy"
+                if event.key == pygame.K_2:
+                    return "hard"
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    quit()
+
+
+def get_neighbors(position, min_x, max_x, min_y, max_y, tile_size):
+    x, y = position
+    neighbors = [
+        (x + tile_size, y),
+        (x - tile_size, y),
+        (x, y + tile_size),
+        (x, y - tile_size),
+    ]
+
+    valid_neighbors = []
+
+    for neighbor_x, neighbor_y in neighbors:
+        if neighbor_x >= min_x and neighbor_x < max_x and neighbor_y >= min_y and neighbor_y < max_y:
+            valid_neighbors.append((neighbor_x, neighbor_y))
+
+    return valid_neighbors
+
+
+def bfs(ai, min_x, max_x, min_y, max_y):
+    start = (ai.snake_pos[0], ai.snake_pos[1])
+    goal = (ai.fruit_pos[0], ai.fruit_pos[1])
+
+    queue = deque([start])
+    visited = set()
+    visited.add(start)
+    parent = {}
+
+    blocked = set()
+    for tile in ai.snake_body[1:]:
+        blocked.add((tile[0], tile[1]))
+
+    while queue:
+        current = queue.popleft()
+
+        if current == goal:
+            break
+
+        neighbors = get_neighbors(current, min_x, max_x, min_y, max_y, ai.tile_size)
+
+        for neighbor in neighbors:
+            if neighbor not in visited and neighbor not in blocked:
+                visited.add(neighbor)
+                parent[neighbor] = current
+                queue.append(neighbor)
+
+    if goal not in parent and goal != start:
+        return []
+
+    path = []
+    current = goal
+
+    while current != start:
+        path.append(current)
+        current = parent[current]
+
+    path.reverse()
+    return path
+
+
+def ai_move_from_path(ai, path):
+    if len(path) == 0:
+        return
+
+    next_pos = path[0]
+
+    if next_pos[0] > ai.snake_pos[0]:
+        ai.change_direction("right")
+    if next_pos[0] < ai.snake_pos[0]:
+        ai.change_direction("left")
+    if next_pos[1] > ai.snake_pos[1]:
+        ai.change_direction("down")
+    if next_pos[1] < ai.snake_pos[1]:
+        ai.change_direction("up")
+
+
+def ai_move(ai, difficulty):
+    min_x = SPLIT_SCREEN_WIDTH + MID_BAR_WIDTH
+    max_x = WINDOW_WIDTH
+    min_y = 0
+    max_y = WINDOW_HEIGHT
+
+    if difficulty == "easy":
+        path = bfs(ai, min_x, max_x, min_y, max_y)
+        ai_move_from_path(ai, path)
+
+    if difficulty == "hard":
+        # TODO: Replace this with A* pathfinding when implemented
+        path = bfs(ai, min_x, max_x, min_y, max_y)
+        ai_move_from_path(ai, path)
+
+
 if __name__ == "__main__":
+    difficulty = start_menu(window)
+
     # Initializing Player and AI game objects
     player = SnakePlayer(SPLIT_SCREEN_WIDTH, SPLIT_SCREEN_HEIGHT)
     ai = SnakePlayer(SPLIT_SCREEN_WIDTH, SPLIT_SCREEN_HEIGHT, offset=SPLIT_SCREEN_WIDTH + MID_BAR_WIDTH)
@@ -173,15 +315,6 @@ if __name__ == "__main__":
                     player.change_direction("right")
                 if event.key == pygame.K_a:
                     player.change_direction("left")
-
-                if event.key == pygame.K_UP:
-                    ai.change_direction("up")
-                if event.key == pygame.K_DOWN:
-                    ai.change_direction("down")
-                if event.key == pygame.K_RIGHT:
-                    ai.change_direction("right")
-                if event.key == pygame.K_LEFT:
-                    ai.change_direction("left")
 
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
@@ -203,6 +336,7 @@ if __name__ == "__main__":
         player.update()
 
         # Fetching game state of AI
+        ai_move(ai, difficulty)
         ai.update()
 
         # =================================
