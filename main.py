@@ -1,6 +1,7 @@
 import pygame
 import random
 import time
+import heapq
 from collections import deque
 
 # most of this code is taken from the geeks2geeks tutorial
@@ -261,6 +262,49 @@ def bfs(ai, min_x, max_x, min_y, max_y):
     return path
 
 
+def a_star(ai, min_x, max_x, min_y, max_y):
+    start = (ai.snake_pos[0], ai.snake_pos[1])
+    goal = (ai.fruit_pos[0], ai.fruit_pos[1])
+
+    # Manhattan distance heuristic function
+    def heuristic(a, b):
+        return (abs(a[0] - b[0]) + abs(a[1] - b[1])) // ai.tile_size
+
+    blocked = set()
+    for tile in ai.snake_body[1:]:
+        blocked.add((tile[0], tile[1]))
+
+    open_set = [(heuristic(start, goal), 0, start)]
+    came_from = {}
+    g_score = {start: 0}
+    counter = 1
+
+    while open_set:
+        _, _, current = heapq.heappop(open_set)
+
+        if current == goal:
+            path = []
+            while current != start:
+                path.append(current)
+                current = came_from[current]
+            path.reverse()
+            return path
+
+        for neighbor in get_neighbors(current, min_x, max_x, min_y, max_y, ai.tile_size):
+            if neighbor in blocked:
+                continue
+
+            tentative_g = g_score[current] + 1
+            if neighbor not in g_score or tentative_g < g_score[neighbor]:
+                came_from[neighbor] = current
+                g_score[neighbor] = tentative_g
+                f_score = tentative_g + heuristic(neighbor, goal)
+                heapq.heappush(open_set, (f_score, counter, neighbor))
+                counter += 1
+
+    return []
+
+
 def ai_move_from_path(ai, path):
     if len(path) == 0:
         return
@@ -288,8 +332,7 @@ def ai_move(ai, difficulty):
         ai_move_from_path(ai, path)
 
     if difficulty == "hard":
-        # TODO: Replace this with A* pathfinding when implemented
-        path = bfs(ai, min_x, max_x, min_y, max_y)
+        path = a_star(ai, min_x, max_x, min_y, max_y)
         ai_move_from_path(ai, path)
 
 
