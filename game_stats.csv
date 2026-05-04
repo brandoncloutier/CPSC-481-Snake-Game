@@ -209,3 +209,13 @@ timestamp,difficulty,winner,snake,score,apples,avg_turns,avg_spaces
 2026-05-04T14:25:56,ai_vs_ai,ai,ai,930,93,2.78,23.68
 2026-05-04T14:26:09,ai_vs_ai,ai,player,720,72,2.43,21.87
 2026-05-04T14:26:09,ai_vs_ai,ai,ai,580,58,2.22,27.09
+2026-05-04T15:01:45,hard,ai,player,0,0,0,0
+2026-05-04T15:01:45,hard,ai,ai,10,1,1.0,15.0
+2026-05-04T15:02:19,medium,ai,player,0,0,0,0
+2026-05-04T15:02:19,medium,ai,ai,0,0,0,0
+2026-05-04T15:02:47,medium,player,player,0,0,0,0
+2026-05-04T15:02:47,medium,player,ai,1100,110,2.65,25.63
+2026-05-04T15:04:04,ai_vs_ai,ai,player,1050,105,2.79,25.5
+2026-05-04T15:04:04,ai_vs_ai,ai,ai,930,93,2.63,24.88
+2026-05-04T15:05:40,hard,player,player,40,4,6.25,45.0
+2026-05-04T15:05:40,hard,player,ai,1030,103,2.83,23.4

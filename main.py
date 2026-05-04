@@ -12,9 +12,10 @@ from collections import deque
 # player is controlled using wasd, second player is controlled through arrow keys for now
 # to change the second player, use ai.change_direction('left') or 'right' 'up' 'down'
 
-SNAKE_SPEED = 2000
+SNAKE_SPEED = 20
 
-running = True
+player_running = True
+ai_running = True
 
 TILE_SIZE = 20
 FRUIT_SIZE = 15
@@ -503,7 +504,7 @@ if __name__ == "__main__":
     # ================================================================================================
     # MAIN GAME LOOP
     # ================================================================================================
-    while running:
+    while player_running or ai_running:
         # Checks for player Input and invokes a movement action
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
@@ -534,42 +535,49 @@ if __name__ == "__main__":
         # This will be called every game tick.
 
         # Fetching game state of player
-        if difficulty == "ai_vs_ai":
-            ai_move(player, "bfs", 0, SPLIT_SCREEN_WIDTH, 0, SPLIT_SCREEN_HEIGHT)
-        player.update()
+        if player_running:
+            if difficulty == "ai_vs_ai":
+                ai_move(player, "bfs", 0, SPLIT_SCREEN_WIDTH, 0, SPLIT_SCREEN_HEIGHT)
+            player.update()
 
         # Fetching game state of AI
-        if difficulty == "ai_vs_ai":
-            ai_move(ai, "a_star", SPLIT_SCREEN_WIDTH + MID_BAR_WIDTH, WINDOW_WIDTH, 0, WINDOW_HEIGHT)
-        else:
-            ai_move(ai, DIFFICULTY_TO_ALGORITHM[difficulty], SPLIT_SCREEN_WIDTH + MID_BAR_WIDTH, WINDOW_WIDTH, 0, WINDOW_HEIGHT)
-        ai.update()
+        if ai_running:
+            if difficulty == "ai_vs_ai":
+                ai_move(ai, "a_star", SPLIT_SCREEN_WIDTH + MID_BAR_WIDTH, WINDOW_WIDTH, 0, WINDOW_HEIGHT)
+            else:
+                ai_move(ai, DIFFICULTY_TO_ALGORITHM[difficulty], SPLIT_SCREEN_WIDTH + MID_BAR_WIDTH, WINDOW_WIDTH, 0, WINDOW_HEIGHT)
+            ai.update()
 
         # =================================
         # Checking for game over conditions
         # =================================
 
-        # Checks for Player self collision
-        if player.is_self_collision():
-            player_id = 0
-            running = False
+        
+        if player_running:
+            # Checks for Player self collision
+            if player.is_self_collision():
+                player_id = 0
+                player_running = False
+                SNAKE_SPEED = 100
+                # Checks for Player out of bounds
+            if player.is_out_of_bounds(0, SPLIT_SCREEN_WIDTH, 0, SPLIT_SCREEN_HEIGHT):
+                print("player went outside of play zone1")
+                player_id = 0
+                player_running = False
+                SNAKE_SPEED = 100
 
-        # Checks for AI self collision
-        if ai.is_self_collision():
-            player_id = 1
-            running = False
+        if ai_running:
+            # Checks for AI self collision
+            if ai.is_self_collision():
+                player_id = 1
+                ai_running = False
 
-        # Checks for Player out of bounds
-        if player.is_out_of_bounds(0, SPLIT_SCREEN_WIDTH, 0, SPLIT_SCREEN_HEIGHT):
-            print("player went outside of play zone1")
-            player_id = 0
-            running = False
 
-        # Checks for AI out of bounds
-        if ai.is_out_of_bounds(SPLIT_SCREEN_WIDTH, WINDOW_WIDTH, 0, WINDOW_HEIGHT):
-            print("ai went outside of play zone")
-            player_id = 1
-            running = False
+            # Checks for AI out of bounds
+            if ai.is_out_of_bounds(SPLIT_SCREEN_WIDTH, WINDOW_WIDTH, 0, WINDOW_HEIGHT):
+                print("ai went outside of play zone")
+                player_id = 1
+                ai_running = False
 
         # ==================
         # Drawing the Canvas
