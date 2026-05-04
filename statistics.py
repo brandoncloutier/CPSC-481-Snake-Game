@@ -13,12 +13,13 @@ SNAKE_COLORS = {"player": "tab:blue", "ai": "tab:red"}
 
 
 def load_stats(path, difficulty):
-    by_snake = defaultdict(lambda: {"avg_turns": [], "avg_spaces": []})
+    by_snake = defaultdict(lambda: {"avg_turns": [], "avg_spaces": [], "score": []})
     with open(path, newline="") as f:
         reader = csv.DictReader(f)
         for row in reader:
             if row["difficulty"] != difficulty:
                 continue
+            by_snake[row["snake"]]["score"].append(float(row["score"]))
             # Skip games where the snake never ate an apple — averages are 0 and not meaningful
             if int(row["apples"]) == 0:
                 continue
@@ -53,14 +54,10 @@ def plot_distribution(ax, values_by_snake, title, xlabel):
     ax.legend()
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Plot player vs AI stat distributions for a given difficulty.")
-    parser.add_argument("difficulty", choices=["easy", "medium", "hard", "ai_vs_ai"], help="Which difficulty's games to plot")
-    args = parser.parse_args()
+def plot_difficulty(difficulty):
+    data = load_stats(CSV_PATH, difficulty)
 
-    data = load_stats(CSV_PATH, args.difficulty)
-
-    fig, (ax_turns, ax_spaces) = plt.subplots(1, 2, figsize=(13, 5))
+    fig, (ax_turns, ax_spaces, ax_score) = plt.subplots(1, 3, figsize=(18, 5))
 
     plot_distribution(
         ax_turns,
@@ -74,10 +71,61 @@ def main():
         "Average Spaces per Apple",
         "Avg spaces",
     )
+    plot_distribution(
+        ax_score,
+        {snake: d["score"] for snake, d in data.items()},
+        "Final Score",
+        "Score",
+    )
 
-    fig.suptitle(f"Player vs AI — {args.difficulty} mode")
+    fig.suptitle(f"Player vs AI — {difficulty} mode")
     fig.tight_layout()
     plt.show()
+
+
+SCORE_TITLES = {
+    "easy": "Final Score — Easy (DFS)",
+    "medium": "Final Score — Medium (BFS)",
+    "hard": "Final Score — Hard (A*)",
+    "ai_vs_ai": "Final Score — BFS (player) vs A* (ai)",
+}
+
+
+def plot_score(difficulty):
+    data = load_stats(CSV_PATH, difficulty)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    plot_distribution(
+        ax,
+        {snake: d["score"] for snake, d in data.items()},
+        SCORE_TITLES.get(difficulty, f"Final Score — {difficulty}"),
+        "Score",
+    )
+    fig.tight_layout()
+    plt.show()
+
+
+SCORE_COMMANDS = {
+    "easy_score": "easy",
+    "medium_score": "medium",
+    "hard_score": "hard",
+    "ai_vs_ai_score": "ai_vs_ai",
+}
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Plot snake game stat distributions.")
+    parser.add_argument(
+        "command",
+        choices=["easy", "medium", "hard", "ai_vs_ai"] + list(SCORE_COMMANDS.keys()),
+        help="Difficulty to plot, or '<difficulty>_score' for a focused score distribution",
+    )
+    args = parser.parse_args()
+
+    if args.command in SCORE_COMMANDS:
+        plot_score(SCORE_COMMANDS[args.command])
+    else:
+        plot_difficulty(args.command)
 
 
 if __name__ == "__main__":

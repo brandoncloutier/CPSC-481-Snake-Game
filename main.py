@@ -12,7 +12,7 @@ from collections import deque
 # player is controlled using wasd, second player is controlled through arrow keys for now
 # to change the second player, use ai.change_direction('left') or 'right' 'up' 'down'
 
-SNAKE_SPEED = 20
+SNAKE_SPEED = 2000
 
 running = True
 
