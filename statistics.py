@@ -9,7 +9,9 @@ from scipy.stats import gaussian_kde
 
 CSV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "game_stats.csv")
 
-SNAKE_COLORS = {"player": "tab:blue", "ai": "tab:red"}
+SNAKE_COLORS = {"player": "tab:blue", "ai": "tab:red", "bfs": "tab:blue", "a_star": "tab:red"}
+
+SNAKE_DISPLAY_NAMES = {"bfs": "BFS", "a_star": "A*"}
 
 
 def load_stats(path, difficulty):
@@ -43,7 +45,8 @@ def plot_distribution(ax, values_by_snake, title, xlabel):
         kde = gaussian_kde(values)
         ys = kde(xs)
         color = SNAKE_COLORS.get(snake, "tab:gray")
-        label = f"{snake} (μ={np.mean(values):.2f}, σ={np.std(values):.2f}, n={len(values)})"
+        display_name = SNAKE_DISPLAY_NAMES.get(snake, snake)
+        label = f"{display_name} (μ={np.mean(values):.2f}, σ={np.std(values):.2f}, n={len(values)})"
         ax.plot(xs, ys, color=color, linewidth=2, label=label)
         ax.fill_between(xs, ys, alpha=0.2, color=color)
         ax.axvline(np.mean(values), color=color, linestyle="--", alpha=0.6)
@@ -78,7 +81,8 @@ def plot_difficulty(difficulty):
         "Score",
     )
 
-    fig.suptitle(f"Player vs AI — {difficulty} mode")
+    suptitle = "BFS vs A*" if difficulty == "ai_vs_ai" else f"Player vs AI — {difficulty} mode"
+    fig.suptitle(suptitle)
     fig.tight_layout()
     plt.show()
 
@@ -87,7 +91,7 @@ SCORE_TITLES = {
     "easy": "Final Score — Easy (DFS)",
     "medium": "Final Score — Medium (BFS)",
     "hard": "Final Score — Hard (A*)",
-    "ai_vs_ai": "Final Score — BFS (player) vs A* (ai)",
+    "ai_vs_ai": "Final Score — BFS vs A*",
 }
 
 

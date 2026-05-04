@@ -205,11 +205,15 @@ STATS_CSV_FIELDS = [
     "timestamp", "difficulty", "winner", "snake", "score", "apples", "avg_turns", "avg_spaces",
 ]
 
-
+# Function to log the game stats to the csv file
 def log_game_stats(difficulty, winner, player, ai):
     timestamp = datetime.now().isoformat(timespec="seconds")
     rows = []
-    for label, snake in (("player", player), ("ai", ai)):
+    if difficulty == "ai_vs_ai":
+        labels = (("bfs", player), ("a_star", ai))
+    else:
+        labels = (("player", player), ("ai", ai))
+    for label, snake in labels:
         stats = snake.statistics.summary()
         rows.append({
             "timestamp": timestamp,
@@ -554,28 +558,15 @@ if __name__ == "__main__":
 
         
         if player_running:
-            # Checks for Player self collision
-            if player.is_self_collision():
+            # Checks for Player collision
+            if player.is_self_collision() or player.is_out_of_bounds(0, SPLIT_SCREEN_WIDTH, 0, SPLIT_SCREEN_HEIGHT):
                 player_id = 0
                 player_running = False
-                SNAKE_SPEED = 100
-                # Checks for Player out of bounds
-            if player.is_out_of_bounds(0, SPLIT_SCREEN_WIDTH, 0, SPLIT_SCREEN_HEIGHT):
-                print("player went outside of play zone1")
-                player_id = 0
-                player_running = False
-                SNAKE_SPEED = 100
+                SNAKE_SPEED = 5000
 
         if ai_running:
-            # Checks for AI self collision
-            if ai.is_self_collision():
-                player_id = 1
-                ai_running = False
-
-
-            # Checks for AI out of bounds
-            if ai.is_out_of_bounds(SPLIT_SCREEN_WIDTH, WINDOW_WIDTH, 0, WINDOW_HEIGHT):
-                print("ai went outside of play zone")
+            # Checks for AI collision
+            if ai.is_self_collision() or ai.is_out_of_bounds(SPLIT_SCREEN_WIDTH, WINDOW_WIDTH, 0, WINDOW_HEIGHT):
                 player_id = 1
                 ai_running = False
 
@@ -600,7 +591,10 @@ if __name__ == "__main__":
     # END GAME Process
     # ================================================================================================
     final_score = player.score if player_id == 0 else ai.score
-    winner = "ai" if player_id == 0 else "player"
+    if difficulty == "ai_vs_ai":
+        winner = "a_star" if player_id == 0 else "bfs"
+    else:
+        winner = "ai" if player_id == 0 else "player"
     log_game_stats(difficulty, winner, player, ai)
     game_over(window, final_score, player_id, SPLIT_SCREEN_WIDTH, SPLIT_SCREEN_HEIGHT, WHITE)
     time.sleep(2)
