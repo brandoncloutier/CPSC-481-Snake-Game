@@ -2,6 +2,9 @@ import pygame
 import random
 import time
 import heapq
+import csv
+import os
+from datetime import datetime
 from collections import deque
 
 # most of this code is taken from the geeks2geeks tutorial
@@ -9,7 +12,7 @@ from collections import deque
 # player is controlled using wasd, second player is controlled through arrow keys for now
 # to change the second player, use ai.change_direction('left') or 'right' 'up' 'down'
 
-SNAKE_SPEED = 20
+SNAKE_SPEED = 200
 
 running = True
 
@@ -20,6 +23,8 @@ BLACK = pygame.Color(0, 0, 0)
 WHITE = pygame.Color(255, 255, 255)
 GREEN = pygame.Color(0, 255, 0)
 RED = pygame.Color(255, 0, 0)
+YELLOW = pygame.Color(255, 255, 0)
+CYAN = pygame.Color(0, 255, 255)
 
 pygame.init()
 pygame.font.init()
@@ -33,6 +38,53 @@ SPLIT_SCREEN_HEIGHT = WINDOW_HEIGHT
 window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 
 fps = pygame.time.Clock()
+
+class Statistics:
+    def __init__ (self):
+        self._apple_counter = 0
+
+        self._current_number_of_turns_taken = 0    
+        self._average_number_of_turns_taken = 0
+
+        self._current_number_of_spaces_traversed = 0
+        self._average_number_of_spaces_traversed = 0
+        
+    
+    def increment_current_number_of_turns_taken(self):
+        self._current_number_of_turns_taken += 1
+
+    def increment_current_number_of_spaces_traversed(self):
+        self._current_number_of_spaces_traversed += 1
+
+    def record_apple(self):
+        self._apple_counter += 1
+
+        # Incremental mean: new_avg = old_avg + (sample - old_avg) / n
+        self._average_number_of_turns_taken += (
+            self._current_number_of_turns_taken - self._average_number_of_turns_taken
+        ) / self._apple_counter
+        self._average_number_of_spaces_traversed += (
+            self._current_number_of_spaces_traversed - self._average_number_of_spaces_traversed
+        ) / self._apple_counter
+
+        self._current_number_of_turns_taken = 0
+        self._current_number_of_spaces_traversed = 0
+
+        print(
+            f"Apple #{self._apple_counter} collected | "
+            f"avg turns: {self._average_number_of_turns_taken:.2f} | "
+            f"avg spaces: {self._average_number_of_spaces_traversed:.2f}"
+        )
+
+    def summary(self):
+        return {
+            "apples": self._apple_counter,
+            "avg_turns": round(self._average_number_of_turns_taken, 2),
+            "avg_spaces": round(self._average_number_of_spaces_traversed, 2),
+        }
+    
+
+    
 
 
 class SnakePlayer:
@@ -66,15 +118,27 @@ class SnakePlayer:
         self.fruit_pos = [0, 0]
         self.fruit_spawned = False
 
+        self.cached_path = []
+
+        self.statistics = Statistics()
+
     def change_direction(self, turn_to):
-        if turn_to == "left" and self.direction != "right":
+        if turn_to == "left" and self.direction != "right" and turn_to != self.direction:
             self.direction = "left"
-        if turn_to == "right" and self.direction != "left":
+            self.statistics.increment_current_number_of_turns_taken()
+        
+        elif turn_to == "right" and self.direction != "left" and turn_to != self.direction:
             self.direction = "right"
-        if turn_to == "up" and self.direction != "down":
+            self.statistics.increment_current_number_of_turns_taken()
+            
+        elif turn_to == "up" and self.direction != "down" and turn_to != self.direction:
             self.direction = "up"
-        if turn_to == "down" and self.direction != "up":
+            self.statistics.increment_current_number_of_turns_taken()
+            
+        elif turn_to == "down" and self.direction != "up" and turn_to != self.direction:
             self.direction = "down"
+            self.statistics.increment_current_number_of_turns_taken()
+            
 
     def update(self):
         if self.direction == "up":
@@ -89,6 +153,7 @@ class SnakePlayer:
         self.snake_body.insert(0, list(self.snake_pos))
         if (self.snake_pos[0] == self.fruit_pos[0] and self.snake_pos[1] == self.fruit_pos[1]):
             self.score += 10
+            self.statistics.record_apple()
             self.fruit_spawned = False
         else:
             self.snake_body.pop()
@@ -106,6 +171,7 @@ class SnakePlayer:
                     break
 
         self.fruit_spawned = True
+        self.statistics.increment_current_number_of_spaces_traversed()
 
     def is_self_collision(self):
         for tile in self.snake_body[1:]:
@@ -131,6 +197,36 @@ def pixel_to_grid(pixel_x, pixel_y, grid_size=TILE_SIZE):
 
 def grid_to_pixel(grid_x, grid_y, grid_size=TILE_SIZE):
     return grid_x * grid_size, grid_y * grid_size
+
+
+STATS_CSV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "game_stats.csv")
+STATS_CSV_FIELDS = [
+    "timestamp", "difficulty", "winner", "snake", "score", "apples", "avg_turns", "avg_spaces",
+]
+
+
+def log_game_stats(difficulty, winner, player, ai):
+    timestamp = datetime.now().isoformat(timespec="seconds")
+    rows = []
+    for label, snake in (("player", player), ("ai", ai)):
+        stats = snake.statistics.summary()
+        rows.append({
+            "timestamp": timestamp,
+            "difficulty": difficulty,
+            "winner": winner,
+            "snake": label,
+            "score": snake.score,
+            "apples": stats["apples"],
+            "avg_turns": stats["avg_turns"],
+            "avg_spaces": stats["avg_spaces"],
+        })
+
+    write_header = not os.path.exists(STATS_CSV_PATH) or os.path.getsize(STATS_CSV_PATH) == 0
+    with open(STATS_CSV_PATH, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=STATS_CSV_FIELDS)
+        if write_header:
+            writer.writeheader()
+        writer.writerows(rows)
 
 
 def render_score(surface, score_value, player_id, split_screen_width, mid_bar_width, color):
@@ -167,18 +263,24 @@ def draw_menu(surface):
     option_font = pygame.font.SysFont("arial", 30)
 
     title_surface = title_font.render("AI Snake Project", True, WHITE)
-    easy_surface = option_font.render("Press 1 for Easy Mode (BFS)", True, GREEN)
-    hard_surface = option_font.render("Press 2 for Hard Mode (A*)", True, RED)
+    easy_surface = option_font.render("Press 1 for Easy Mode (DFS)", True, GREEN)
+    medium_surface = option_font.render("Press 2 for Medium Mode (BFS)", True, YELLOW)
+    hard_surface = option_font.render("Press 3 for Hard Mode (A*)", True, RED)
+    ai_vs_ai_surface = option_font.render("Press 4 for BFS vs A*", True, CYAN)
     quit_surface = option_font.render("Press ESC to Quit", True, WHITE)
 
     title_rect = title_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 100))
-    easy_rect = easy_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2))
+    easy_rect = easy_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 50))
+    medium_rect = medium_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2))
     hard_rect = hard_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 50))
-    quit_rect = quit_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 120))
+    ai_vs_ai_rect = ai_vs_ai_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 100))
+    quit_rect = quit_surface.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 170))
 
     surface.blit(title_surface, title_rect)
     surface.blit(easy_surface, easy_rect)
+    surface.blit(medium_surface, medium_rect)
     surface.blit(hard_surface, hard_rect)
+    surface.blit(ai_vs_ai_surface, ai_vs_ai_rect)
     surface.blit(quit_surface, quit_rect)
 
     pygame.display.update()
@@ -197,7 +299,11 @@ def start_menu(surface):
                 if event.key == pygame.K_1:
                     return "easy"
                 if event.key == pygame.K_2:
+                    return "medium"
+                if event.key == pygame.K_3:
                     return "hard"
+                if event.key == pygame.K_4:
+                    return "ai_vs_ai"
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     quit()
@@ -219,6 +325,47 @@ def get_neighbors(position, min_x, max_x, min_y, max_y, tile_size):
             valid_neighbors.append((neighbor_x, neighbor_y))
 
     return valid_neighbors
+
+
+def dfs(ai, min_x, max_x, min_y, max_y):
+    start = (ai.snake_pos[0], ai.snake_pos[1])
+    goal = (ai.fruit_pos[0], ai.fruit_pos[1])
+
+    stack = [start]
+    visited = set()
+    visited.add(start)
+    parent = {}
+
+    blocked = set()
+    for tile in ai.snake_body[1:]:
+        blocked.add((tile[0], tile[1]))
+
+    while stack:
+        current = stack.pop()
+
+        if current == goal:
+            break
+
+        neighbors = get_neighbors(current, min_x, max_x, min_y, max_y, ai.tile_size)
+
+        for neighbor in neighbors:
+            if neighbor not in visited and neighbor not in blocked:
+                visited.add(neighbor)
+                parent[neighbor] = current
+                stack.append(neighbor)
+
+    if goal not in parent and goal != start:
+        return []
+
+    path = []
+    current = goal
+
+    while current != start:
+        path.append(current)
+        current = parent[current]
+
+    path.reverse()
+    return path
 
 
 def bfs(ai, min_x, max_x, min_y, max_y):
@@ -321,27 +468,37 @@ def ai_move_from_path(ai, path):
         ai.change_direction("up")
 
 
-def ai_move(ai, difficulty):
-    min_x = SPLIT_SCREEN_WIDTH + MID_BAR_WIDTH
-    max_x = WINDOW_WIDTH
-    min_y = 0
-    max_y = WINDOW_HEIGHT
+def ai_move(snake, algorithm, min_x, max_x, min_y, max_y):
+    if algorithm == "dfs":
+        if not snake.cached_path:
+            snake.cached_path = dfs(snake, min_x, max_x, min_y, max_y)
+        ai_move_from_path(snake, snake.cached_path)
+        if snake.cached_path:
+            snake.cached_path.pop(0)
 
-    if difficulty == "easy":
-        path = bfs(ai, min_x, max_x, min_y, max_y)
-        ai_move_from_path(ai, path)
+    if algorithm == "bfs":
+        path = bfs(snake, min_x, max_x, min_y, max_y)
+        ai_move_from_path(snake, path)
 
-    if difficulty == "hard":
-        path = a_star(ai, min_x, max_x, min_y, max_y)
-        ai_move_from_path(ai, path)
+    if algorithm == "a_star":
+        path = a_star(snake, min_x, max_x, min_y, max_y)
+        ai_move_from_path(snake, path)
+
+
+DIFFICULTY_TO_ALGORITHM = {
+    "easy": "dfs",
+    "medium": "bfs",
+    "hard": "a_star",
+}
 
 
 if __name__ == "__main__":
-    difficulty = start_menu(window)
+    difficulty = os.environ.get("SNAKE_MODE") or start_menu(window)
 
     # Initializing Player and AI game objects
     player = SnakePlayer(SPLIT_SCREEN_WIDTH, SPLIT_SCREEN_HEIGHT)
     ai = SnakePlayer(SPLIT_SCREEN_WIDTH, SPLIT_SCREEN_HEIGHT, offset=SPLIT_SCREEN_WIDTH + MID_BAR_WIDTH)
+
 
     # ================================================================================================
     # MAIN GAME LOOP
@@ -350,14 +507,15 @@ if __name__ == "__main__":
         # Checks for player Input and invokes a movement action
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_w:
-                    player.change_direction("up")
-                if event.key == pygame.K_s:
-                    player.change_direction("down")
-                if event.key == pygame.K_d:
-                    player.change_direction("right")
-                if event.key == pygame.K_a:
-                    player.change_direction("left")
+                if difficulty != "ai_vs_ai":
+                    if event.key == pygame.K_w:
+                        player.change_direction("up")
+                    if event.key == pygame.K_s:
+                        player.change_direction("down")
+                    if event.key == pygame.K_d:
+                        player.change_direction("right")
+                    if event.key == pygame.K_a:
+                        player.change_direction("left")
 
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
@@ -376,10 +534,15 @@ if __name__ == "__main__":
         # This will be called every game tick.
 
         # Fetching game state of player
+        if difficulty == "ai_vs_ai":
+            ai_move(player, "bfs", 0, SPLIT_SCREEN_WIDTH, 0, SPLIT_SCREEN_HEIGHT)
         player.update()
 
         # Fetching game state of AI
-        ai_move(ai, difficulty)
+        if difficulty == "ai_vs_ai":
+            ai_move(ai, "a_star", SPLIT_SCREEN_WIDTH + MID_BAR_WIDTH, WINDOW_WIDTH, 0, WINDOW_HEIGHT)
+        else:
+            ai_move(ai, DIFFICULTY_TO_ALGORITHM[difficulty], SPLIT_SCREEN_WIDTH + MID_BAR_WIDTH, WINDOW_WIDTH, 0, WINDOW_HEIGHT)
         ai.update()
 
         # =================================
@@ -428,7 +591,8 @@ if __name__ == "__main__":
     # ================================================================================================
     # END GAME Process
     # ================================================================================================
-    print(player_id)
     final_score = player.score if player_id == 0 else ai.score
+    winner = "ai" if player_id == 0 else "player"
+    log_game_stats(difficulty, winner, player, ai)
     game_over(window, final_score, player_id, SPLIT_SCREEN_WIDTH, SPLIT_SCREEN_HEIGHT, WHITE)
     time.sleep(2)
