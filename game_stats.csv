@@ -115,3 +115,5 @@ timestamp,difficulty,winner,snake,score,apples,avg_turns,avg_spaces
 2026-05-04T16:09:59,hard,player,ai,900,90,2.41,25.22
 2026-05-04T16:10:40,hard,player,player,130,13,2.31,35.85
 2026-05-04T16:10:40,hard,player,ai,1220,122,2.73,25.02
+2026-05-06T12:00:47,medium,player,player,60,6,4.17,40.83
+2026-05-06T12:00:47,medium,player,ai,910,91,2.67,26.75
