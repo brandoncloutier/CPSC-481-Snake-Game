@@ -5,7 +5,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 MAIN = os.path.join(HERE, "main.py")
 
-
+# Continuously runs the ai vs ai game to record analytics
 def main():
     env = os.environ.copy()
     env["SNAKE_MODE"] = "ai_vs_ai"

@@ -31,6 +31,7 @@ pygame.init()
 pygame.font.init()
 pygame.display.set_caption("AI Snake Project")
 
+# CONSTANTS
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 720
 MID_BAR_WIDTH = 20
@@ -40,6 +41,7 @@ window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 
 fps = pygame.time.Clock()
 
+# Statistics class to track average number of turns and spaces
 class Statistics:
     def __init__ (self):
         self._apple_counter = 0
@@ -50,13 +52,15 @@ class Statistics:
         self._current_number_of_spaces_traversed = 0
         self._average_number_of_spaces_traversed = 0
         
-    
+    # Function to increment number of turns for tracking
     def increment_current_number_of_turns_taken(self):
         self._current_number_of_turns_taken += 1
 
+    # Function to incremeent number of spaces for tracking
     def increment_current_number_of_spaces_traversed(self):
         self._current_number_of_spaces_traversed += 1
 
+    # Takes the current number of turns and spaces and recalculates the averages
     def record_apple(self):
         self._apple_counter += 1
 
@@ -87,7 +91,7 @@ class Statistics:
 
     
 
-
+# Snake player class
 class SnakePlayer:
     def __init__(
         self, screen_width, screen_height, offset=0, tile_size=TILE_SIZE, fruit_size=FRUIT_SIZE
@@ -123,6 +127,7 @@ class SnakePlayer:
 
         self.statistics = Statistics()
 
+    # Captures movement and changes the snake objects current intended direction
     def change_direction(self, turn_to):
         if turn_to == "left" and self.direction != "right" and turn_to != self.direction:
             self.direction = "left"
@@ -141,6 +146,7 @@ class SnakePlayer:
             self.statistics.increment_current_number_of_turns_taken()
             
 
+    # Updates the snakes position
     def update(self):
         if self.direction == "up":
             self.snake_pos[1] -= self.tile_size
@@ -174,28 +180,31 @@ class SnakePlayer:
         self.fruit_spawned = True
         self.statistics.increment_current_number_of_spaces_traversed()
 
+    # Function to check for self collision
     def is_self_collision(self):
         for tile in self.snake_body[1:]:
             if self.snake_pos[0] == tile[0] and self.snake_pos[1] == tile[1]:
                 return True
         return False
 
+    # Function to check for out of bounds collision
     def is_out_of_bounds(self, min_x, max_x, min_y, max_y):
         if (self.snake_pos[0] < min_x or self.snake_pos[0] >= max_x or self.snake_pos[1] < min_y or self.snake_pos[1] >= max_y):
             return True
         return False
 
+    # Function to render the snake body on the screen
     def render(self, surface, color):
         for tile in self.snake_body:
             pygame.draw.rect(surface, color, pygame.Rect(tile[0], tile[1], self.tile_size, self.tile_size))
 
         pygame.draw.rect(surface, RED, pygame.Rect(self.fruit_pos[0], self.fruit_pos[1], self.fruit_size, self.fruit_size),)
 
-
+# Helper function to convert pixel to grid position
 def pixel_to_grid(pixel_x, pixel_y, grid_size=TILE_SIZE):
     return pixel_x // grid_size, pixel_y // grid_size
 
-
+# Helper function to convert grid to pixel value
 def grid_to_pixel(grid_x, grid_y, grid_size=TILE_SIZE):
     return grid_x * grid_size, grid_y * grid_size
 
@@ -233,7 +242,7 @@ def log_game_stats(difficulty, winner, player, ai):
             writer.writeheader()
         writer.writerows(rows)
 
-
+# Renders the score at the top of the game screen
 def render_score(surface, score_value, player_id, split_screen_width, mid_bar_width, color):
     font = pygame.font.SysFont("arial", 30)
     score_surface = font.render("Score: " + str(score_value), True, color)
@@ -243,7 +252,7 @@ def render_score(surface, score_value, player_id, split_screen_width, mid_bar_wi
 
     surface.blit(score_surface, score_rect)
 
-
+# Function to invoke the game over mechanics
 def game_over(surface, score_value, player_id, split_screen_width, split_screen_height, color):
     font = pygame.font.SysFont("arial", 30)
     line_height = 40
@@ -260,7 +269,7 @@ def game_over(surface, score_value, player_id, split_screen_width, split_screen_
     surface.blit(text_surface, text_rect)
     pygame.display.flip()
 
-
+# Function to draw the menu to the screen
 def draw_menu(surface):
     surface.fill(BLACK)
 
@@ -290,7 +299,7 @@ def draw_menu(surface):
 
     pygame.display.update()
 
-
+# Invokes the start menu loop
 def start_menu(surface):
     while True:
         draw_menu(surface)
@@ -313,7 +322,7 @@ def start_menu(surface):
                     pygame.quit()
                     quit()
 
-
+# Helper function to get the neighbor grid positions
 def get_neighbors(position, min_x, max_x, min_y, max_y, tile_size):
     x, y = position
     neighbors = [
@@ -331,7 +340,7 @@ def get_neighbors(position, min_x, max_x, min_y, max_y, tile_size):
 
     return valid_neighbors
 
-
+# Depth First Search algorithm to compute the next set of cells to traverse to get to an apple
 def dfs(ai, min_x, max_x, min_y, max_y):
     start = (ai.snake_pos[0], ai.snake_pos[1])
     goal = (ai.fruit_pos[0], ai.fruit_pos[1])
@@ -372,7 +381,7 @@ def dfs(ai, min_x, max_x, min_y, max_y):
     path.reverse()
     return path
 
-
+# Breadth First Search algorithm to compute the next set of cells to traverse to get to an apple
 def bfs(ai, min_x, max_x, min_y, max_y):
     start = (ai.snake_pos[0], ai.snake_pos[1])
     goal = (ai.fruit_pos[0], ai.fruit_pos[1])
@@ -413,7 +422,7 @@ def bfs(ai, min_x, max_x, min_y, max_y):
     path.reverse()
     return path
 
-
+# A* algorithm to compute the next set of cells to traverse to get to an apple
 def a_star(ai, min_x, max_x, min_y, max_y):
     start = (ai.snake_pos[0], ai.snake_pos[1])
     goal = (ai.fruit_pos[0], ai.fruit_pos[1])
@@ -456,7 +465,7 @@ def a_star(ai, min_x, max_x, min_y, max_y):
 
     return []
 
-
+# Compute the AI's nect move from the current path
 def ai_move_from_path(ai, path):
     if len(path) == 0:
         return
@@ -472,7 +481,7 @@ def ai_move_from_path(ai, path):
     if next_pos[1] < ai.snake_pos[1]:
         ai.change_direction("up")
 
-
+# Invoke the AI's path decision based on the algorithm
 def ai_move(snake, algorithm, min_x, max_x, min_y, max_y):
     if algorithm == "dfs":
         if not snake.cached_path:
@@ -496,7 +505,7 @@ DIFFICULTY_TO_ALGORITHM = {
     "hard": "a_star",
 }
 
-
+# Main function
 if __name__ == "__main__":
     difficulty = os.environ.get("SNAKE_MODE") or start_menu(window)
 
